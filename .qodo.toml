@@ -1,0 +1,211 @@
+[tool.qodo]
+# Qodo configuration for webserver-go project
+version = "1.0"
+
+[tool.qodo.pr_agent]
+# Pull Request Agent Configuration
+enabled = true
+
+[tool.qodo.pr_agent.pr_description]
+# Automatically generate PR descriptions
+enabled = true
+publish_labels = true
+extra_instructions = """
+- Focus on API changes and endpoint modifications
+- Highlight security implications
+- Document performance impacts
+- Include Docker/deployment considerations
+"""
+
+[tool.qodo.pr_agent.pr_reviewer]
+# Code review automation
+enabled = true
+require_tests = true
+require_security_review = true
+extra_instructions = """
+- Check for proper error handling in HTTP handlers
+- Verify middleware implementation
+- Review Docker configuration changes
+- Ensure proper logging practices
+- Validate JSON response structures
+"""
+
+[tool.qodo.pr_agent.pr_improve]
+# Code improvement suggestions
+enabled = true
+extra_instructions = """
+- Suggest Go best practices
+- Recommend performance optimizations
+- Check for proper resource cleanup
+- Validate HTTP status codes usage
+"""
+
+[tool.qodo.pr_agent.pr_update_changelog]
+# Changelog management
+enabled = true
+changelog_path = "CHANGELOG.md"
+
+[tool.qodo.cover_agent]
+# Test coverage enhancement
+enabled = true
+target_coverage = 80
+test_command = "go test -v ./..."
+coverage_command = "go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html"
+
+[tool.qodo.cover_agent.settings]
+# Coverage settings
+language = "go"
+test_files_pattern = "*_test.go"
+source_files_pattern = "*.go"
+exclude_patterns = [
+    "vendor/*",
+    "*.pb.go",
+    "mock_*.go"
+]
+
+[tool.qodo.docs_agent]
+# Documentation automation
+enabled = true
+extra_instructions = """
+- Document all HTTP endpoints with examples
+- Include Docker setup instructions
+- Explain Nginx configuration
+- Provide API usage examples
+"""
+
+[tool.qodo.docs_agent.settings]
+# Documentation settings
+docs_path = "docs/"
+api_docs_path = "docs/api.md"
+readme_path = "README.md"
+
+[tool.qodo.analyze]
+# Code analysis configuration
+enabled = true
+
+[tool.qodo.analyze.go]
+# Go-specific analysis
+enabled = true
+linters = [
+    "golint",
+    "govet",
+    "gofmt",
+    "goimports",
+    "gosec",
+    "ineffassign",
+    "misspell"
+]
+
+[tool.qodo.analyze.security]
+# Security analysis
+enabled = true
+check_dependencies = true
+check_secrets = true
+exclude_patterns = [
+    ".env.example",
+    "*.md"
+]
+
+[tool.qodo.analyze.performance]
+# Performance analysis
+enabled = true
+check_memory_leaks = true
+check_goroutine_leaks = true
+
+[tool.qodo.git]
+# Git integration settings
+enabled = true
+auto_commit_coverage = false
+auto_commit_docs = false
+
+[tool.qodo.git.hooks]
+# Git hooks configuration
+pre_commit = [
+    "go fmt ./...",
+    "go vet ./...",
+    "go test ./..."
+]
+pre_push = [
+    "go test -race ./...",
+    "go mod tidy"
+]
+
+[tool.qodo.ci_cd]
+# CI/CD integration
+enabled = true
+platform = "github_actions"
+
+[tool.qodo.ci_cd.github_actions]
+# GitHub Actions specific settings
+workflow_path = ".github/workflows/"
+test_on_pr = true
+test_on_push = true
+deploy_on_merge = false
+
+[tool.qodo.docker]
+# Docker-related settings
+enabled = true
+dockerfile_path = "Dockerfile"
+docker_compose_path = "docker-compose.yml"
+check_security = true
+optimize_layers = true
+
+[tool.qodo.monitoring]
+# Monitoring and observability
+enabled = true
+health_check_endpoint = "/health"
+metrics_enabled = false
+logging_level = "info"
+
+[tool.qodo.custom]
+# Custom project-specific settings
+project_type = "web_server"
+language = "go"
+framework = "net/http"
+database = "none"
+cache = "none"
+message_queue = "none"
+
+[tool.qodo.custom.endpoints]
+# API endpoints documentation
+root = "GET / - Welcome message"
+health = "GET /health - Health check"
+static = "GET /static/* - Static file serving"
+
+[tool.qodo.custom.deployment]
+# Deployment configuration
+method = "docker"
+port = 8080
+nginx_port = 80
+environment_vars = [
+    "ENV"
+]
+
+[tool.qodo.exclude]
+# Files and patterns to exclude from analysis
+patterns = [
+    ".git/*",
+    "vendor/*",
+    "*.log",
+    "coverage.out",
+    "coverage.html",
+    "webserver-go",  # compiled binary
+    ".air.toml",
+    "*.tmp"
+]
+
+[tool.qodo.include]
+# Files and patterns to specifically include
+patterns = [
+    "*.go",
+    "*.mod",
+    "*.sum",
+    "Dockerfile",
+    "docker-compose.yml",
+    "nginx.conf",
+    "Makefile",
+    "*.md",
+    "*.toml",
+    "*.yaml",
+    "*.yml"
+]

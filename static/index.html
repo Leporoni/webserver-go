@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servidor Web Go + Nginx</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Servidor Web Go + Nginx</h1>
+        
+        <div class="info">
+            <h3>Informações do Sistema:</h3>
+            <p><strong>Backend:</strong> Go (Golang)</p>
+            <p><strong>Proxy Reverso:</strong> Nginx</p>
+            <p><strong>Status:</strong> <span id="status">Verificando...</span></p>
+        </div>
+
+        <div>
+            <h3>Endpoints Disponíveis:</h3>
+            <button class="button" onclick="testEndpoint('/')">Teste Home</button>
+            <button class="button" onclick="testEndpoint('/health')">Health Check</button>
+        </div>
+
+        <div id="result" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        async function testEndpoint(endpoint) {
+            const resultDiv = document.getElementById('result');
+            try {
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                resultDiv.innerHTML = `
+                    <h4>Resposta de ${endpoint}:</h4>
+                    <pre style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto;">
+${JSON.stringify(data, null, 2)}
+                    </pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">Erro: ${error.message}</p>`;
+            }
+        }
+
+        // Verificar status na inicialização
+        async function checkStatus() {
+            try {
+                const response = await fetch('/health');
+                if (response.ok) {
+                    document.getElementById('status').textContent = 'Online ✅';
+                    document.getElementById('status').style.color = 'green';
+                } else {
+                    document.getElementById('status').textContent = 'Offline ❌';
+                    document.getElementById('status').style.color = 'red';
+                }
+            } catch (error) {
+                document.getElementById('status').textContent = 'Offline ❌';
+                document.getElementById('status').style.color = 'red';
+            }
+        }
+
+        checkStatus();
+    </script>
+</body>
+</html>

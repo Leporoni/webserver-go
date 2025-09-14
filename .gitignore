@@ -1,0 +1,51 @@
+# Binários
+bin/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Arquivos de teste
+*.test
+
+# Arquivos de cobertura
+*.out
+
+# Dependências
+vendor/
+
+# Logs
+*.log
+logs/
+
+# Arquivos do sistema operacional
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Arquivos de configuração local
+.env
+.env.local
+
+# Docker
+.dockerignore
+
+# Air (hot reload)
+build-errors.log

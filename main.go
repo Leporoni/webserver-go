@@ -1,69 +1,52 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"webserver-go/internal/database"
+	"webserver-go/internal/handlers"
+	"webserver-go/internal/middleware"
 )
 
-// Estrutura para resposta JSON
-type Response struct {
-	Message   string    `json:"message"`
-	Timestamp time.Time `json:"timestamp"`
-	Status    string    `json:"status"`
-}
-
-// Handler para a rota principal
-func homeHandler(w http.ResponseWriter, r *http.Request) {
-	response := Response{
-		Message:   "Bem-vindo ao servidor web Go!",
-		Timestamp: time.Now(),
-		Status:    "success",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-// Handler para a rota de saúde
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := Response{
-		Message:   "Servidor funcionando perfeitamente",
-		Timestamp: time.Now(),
-		Status:    "healthy",
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
-}
-
-// Handler para servir arquivos estáticos
-func staticHandler(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "./static/"+r.URL.Path[8:]) // Remove "/static/" do path
-}
-
-// Middleware para logging
-func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
-		log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(start))
-	}
-}
-
 func main() {
+	// Conectar ao banco de dados
+	if err := database.Connect(); err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer database.Close()
+
+	// Executar migrations
+	if err := database.RunMigrations(database.DB); err != nil {
+		log.Printf("Warning: Failed to run migrations: %v", err)
+	}
+
 	// Configurar rotas
-	http.HandleFunc("/", loggingMiddleware(homeHandler))
-	http.HandleFunc("/health", loggingMiddleware(healthHandler))
-	http.HandleFunc("/static/", loggingMiddleware(staticHandler))
+	http.HandleFunc("/", middleware.LoggingMiddleware(handlers.HomeHandler))
+	http.HandleFunc("/health", middleware.LoggingMiddleware(handlers.HealthHandler))
+	http.HandleFunc("/static/", middleware.LoggingMiddleware(handlers.StaticHandler))
 
 	// Configurar servidor
 	port := ":8080"
-	fmt.Printf("Servidor Go iniciando na porta %s\n", port)
+	fmt.Printf("Sistema de Gestão iniciando na porta %s\n", port)
 	fmt.Println("Acesse: http://localhost:8080")
 	fmt.Println("Health check: http://localhost:8080/health")
+	fmt.Println("Database: Connected and migrations applied")
+
+	// Configurar graceful shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-c
+		fmt.Println("\nShutting down gracefully...")
+		database.Close()
+		os.Exit(0)
+	}()
 
 	// Iniciar servidor
 	log.Fatal(http.ListenAndServe(port, nil))

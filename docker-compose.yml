@@ -11,6 +11,14 @@ services:
       - ./logs:/var/log/nginx
     environment:
       - ENV=production
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=gestao_db
+      - DB_USER=gestao_user
+      - DB_PASSWORD=gestao_pass
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
@@ -19,17 +27,24 @@ services:
       retries: 3
       start_period: 40s
 
-  # Opcional: Adicionar um banco de dados
-  # postgres:
-  #   image: postgres:15-alpine
-  #   environment:
-  #     POSTGRES_DB: webserver
-  #     POSTGRES_USER: user
-  #     POSTGRES_PASSWORD: password
-  #   volumes:
-  #     - postgres_data:/var/lib/postgresql/data
-  #   ports:
-  #     - "5432:5432"
+  # Database PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: gestao_db
+      POSTGRES_USER: gestao_user
+      POSTGRES_PASSWORD: gestao_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gestao_user -d gestao_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-# volumes:
-#   postgres_data:
+volumes:
+  postgres_data:

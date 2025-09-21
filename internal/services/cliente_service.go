@@ -97,29 +97,51 @@ func (s *ClienteService) GetAllClientes(page, limit int, search string) ([]model
 	offset := (page - 1) * limit
 
 	// Query base
-	baseQuery := `
-		FROM clientes 
-		WHERE ($3 = '' OR nome ILIKE '%' || $3 || '%' OR email ILIKE '%' || $3 || '%')
-	`
-
-	// Contar total
-	countQuery := "SELECT COUNT(*) " + baseQuery
+	var countQuery string
 	var total int
-	err := s.db.QueryRow(countQuery, limit, offset, search).Scan(&total)
+	var err error
+
+	if search == "" {
+		// Sem filtro de busca
+		countQuery = "SELECT COUNT(*) FROM clientes"
+		err = s.db.QueryRow(countQuery).Scan(&total)
+	} else {
+		// Com filtro de busca
+		countQuery = "SELECT COUNT(*) FROM clientes WHERE nome ILIKE $1 OR email ILIKE $1"
+		searchPattern := "%" + search + "%"
+		err = s.db.QueryRow(countQuery, searchPattern).Scan(&total)
+	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("erro ao contar clientes: %w", err)
 	}
 
 	// Buscar clientes
-	query := `
-		SELECT id, nome, email, telefone, endereco, cidade, estado, cep,
-			   cpf_cnpj, tipo_pessoa, ativo, observacoes, created_at, updated_at
-	` + baseQuery + `
-		ORDER BY nome ASC
-		LIMIT $1 OFFSET $2
-	`
+	var query string
+	var rows *sql.Rows
 
-	rows, err := s.db.Query(query, limit, offset, search)
+	if search == "" {
+		// Sem filtro de busca
+		query = `
+			SELECT id, nome, email, telefone, endereco, cidade, estado, cep,
+				   cpf_cnpj, tipo_pessoa, ativo, observacoes, created_at, updated_at
+			FROM clientes 
+			ORDER BY nome ASC
+			LIMIT $1 OFFSET $2
+		`
+		rows, err = s.db.Query(query, limit, offset)
+	} else {
+		// Com filtro de busca
+		query = `
+			SELECT id, nome, email, telefone, endereco, cidade, estado, cep,
+				   cpf_cnpj, tipo_pessoa, ativo, observacoes, created_at, updated_at
+			FROM clientes 
+			WHERE nome ILIKE $1 OR email ILIKE $1
+			ORDER BY nome ASC
+			LIMIT $2 OFFSET $3
+		`
+		searchPattern := "%" + search + "%"
+		rows, err = s.db.Query(query, searchPattern, limit, offset)
+	}
 	if err != nil {
 		return nil, 0, fmt.Errorf("erro ao buscar clientes: %w", err)
 	}

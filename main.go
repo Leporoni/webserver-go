@@ -35,7 +35,16 @@ func main() {
 	http.HandleFunc("/static/", middleware.LoggingMiddleware(handlers.StaticHandler))
 
 	// Rotas da API de clientes
-	http.HandleFunc("/api/clientes", middleware.LoggingMiddleware(clienteHandler.ListClientesAPI))
+	http.HandleFunc("/api/clientes", middleware.LoggingMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			clienteHandler.ListClientesAPI(w, r)
+		case http.MethodPost:
+			clienteHandler.CreateClienteAPI(w, r)
+		default:
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		}
+	}))
 	http.HandleFunc("/api/clientes/", middleware.LoggingMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -44,8 +53,6 @@ func main() {
 			clienteHandler.UpdateClienteAPI(w, r)
 		case http.MethodDelete:
 			clienteHandler.DeleteClienteAPI(w, r)
-		case http.MethodPost:
-			clienteHandler.CreateClienteAPI(w, r)
 		default:
 			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
 		}

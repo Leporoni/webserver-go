@@ -147,13 +147,13 @@ if ! go build -o webserver-go .; then
 fi
 success "Aplicação compilada com sucesso"
 
-# Iniciar PostgreSQL
-log "Iniciando PostgreSQL..."
-if ! $DOCKER_COMPOSE_CMD up -d postgres; then
-    error "Falha ao iniciar PostgreSQL"
+# Iniciar stack completa (PostgreSQL + Go + Nginx)
+log "Iniciando stack completa (PostgreSQL + Go + Nginx)..."
+if ! $DOCKER_COMPOSE_CMD up -d --build; then
+    error "Falha ao iniciar stack completa"
     exit 1
 fi
-success "PostgreSQL iniciado"
+success "Stack completa iniciada (PostgreSQL + Go + Nginx)"
 
 # Aguardar PostgreSQL ficar pronto
 log "Aguardando PostgreSQL ficar pronto..."
@@ -193,34 +193,17 @@ else
     success "Banco de dados já possui $TABLES_COUNT tabela(s)"
 fi
 
-# Iniciar aplicação Go em background
-log "Iniciando aplicação Go..."
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_NAME=gestao_db
-export DB_USER=gestao_user
-export DB_PASSWORD=gestao_pass
-
-# Matar processo anterior se existir
-pkill -f "webserver-go" 2>/dev/null || true
-sleep 2
-
-# Iniciar aplicação
-./webserver-go &
-APP_PID=$!
-sleep 3
-
-# Verificar se a aplicação está rodando
-if ! kill -0 $APP_PID 2>/dev/null; then
-    error "Aplicação Go falhou ao iniciar"
-    exit 1
-fi
+# Aguardar aplicação Go ficar pronta (rodando no Docker)
+log "Aguardando aplicação Go ficar pronta no Docker..."
+# A aplicação agora roda dentro do container webserver
+# Não precisamos iniciar manualmente
 
 # Aguardar aplicação ficar pronta
 log "Aguardando aplicação ficar pronta..."
 APP_READY=false
-for i in {1..15}; do
-    if curl -s http://localhost:8080/health &>/dev/null; then
+for i in {1..30}; do
+    # Testar tanto Nginx (porta 80) quanto Go direto (porta 8080)
+    if curl -s http://localhost:8080/health &>/dev/null || curl -s http://localhost/health &>/dev/null; then
         APP_READY=true
         break
     fi
@@ -230,14 +213,19 @@ done
 echo ""
 
 if [ "$APP_READY" = false ]; then
-    error "Aplicação não ficou pronta em 30 segundos"
-    log "Verificando se a aplicação ainda está rodando..."
-    if kill -0 $APP_PID 2>/dev/null; then
-        warning "Aplicação está rodando mas não responde no health check"
-    else
-        error "Aplicação parou de funcionar"
-    fi
+    error "Aplicação não ficou pronta em 60 segundos"
+    log "Verificando logs dos containers..."
+    $DOCKER_COMPOSE_CMD logs webserver
     exit 1
+fi
+
+# Verificar qual porta está respondendo
+if curl -s http://localhost/health &>/dev/null; then
+    success "Nginx (porta 80) está respondendo"
+    MAIN_URL="http://localhost"
+else
+    success "Go direto (porta 8080) está respondendo"
+    MAIN_URL="http://localhost:8080"
 fi
 
 success "Aplicação está pronta e respondendo"
@@ -276,13 +264,13 @@ test_endpoint() {
 
 # Teste 1: Health Check
 info "Teste 1: Health Check"
-test_endpoint "GET" "http://localhost:8080/health" "" "200" "Health check"
+test_endpoint "GET" "$MAIN_URL/health" "" "200" "Health check"
 
 echo ""
 
 # Teste 2: Criar cliente
 info "Teste 2: Criar Cliente"
-CREATE_RESPONSE=$(curl -s -X POST http://localhost:8080/api/clientes \
+CREATE_RESPONSE=$(curl -s -X POST $MAIN_URL/api/clientes \
   -H "Content-Type: application/json" \
   -d '{
     "nome": "João Silva Teste",
@@ -308,7 +296,7 @@ echo ""
 
 # Teste 3: Buscar cliente por ID
 info "Teste 3: Buscar Cliente por ID"
-GET_RESPONSE=$(curl -s http://localhost:8080/api/clientes/$CLIENTE_ID)
+GET_RESPONSE=$(curl -s $MAIN_URL/api/clientes/$CLIENTE_ID)
 if echo "$GET_RESPONSE" | grep -q '"nome":"João Silva Teste"'; then
     success "Cliente encontrado corretamente"
 else
@@ -320,7 +308,7 @@ echo ""
 
 # Teste 4: Listar clientes
 info "Teste 4: Listar Clientes"
-LIST_RESPONSE=$(curl -s http://localhost:8080/api/clientes)
+LIST_RESPONSE=$(curl -s $MAIN_URL/api/clientes)
 if echo "$LIST_RESPONSE" | grep -q '"success":true'; then
     TOTAL=$(echo "$LIST_RESPONSE" | grep -o '"total":[0-9]*' | cut -d':' -f2)
     success "Listagem funcionando - Total: $TOTAL cliente(s)"
@@ -333,7 +321,7 @@ echo ""
 
 # Teste 5: Atualizar cliente
 info "Teste 5: Atualizar Cliente"
-UPDATE_RESPONSE=$(curl -s -X PUT http://localhost:8080/api/clientes/$CLIENTE_ID \
+UPDATE_RESPONSE=$(curl -s -X PUT $MAIN_URL/api/clientes/$CLIENTE_ID \
   -H "Content-Type: application/json" \
   -d '{
     "nome": "João Silva Atualizado",
@@ -352,7 +340,7 @@ echo ""
 
 # Teste 6: Deletar cliente
 info "Teste 6: Deletar Cliente"
-DELETE_RESPONSE=$(curl -s -X DELETE http://localhost:8080/api/clientes/$CLIENTE_ID)
+DELETE_RESPONSE=$(curl -s -X DELETE $MAIN_URL/api/clientes/$CLIENTE_ID)
 if echo "$DELETE_RESPONSE" | grep -q '"success":true'; then
     success "Cliente deletado com sucesso"
 else
@@ -364,7 +352,7 @@ echo ""
 
 # Teste 7: Verificar se foi deletado
 info "Teste 7: Verificar Deleção"
-STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/clientes/$CLIENTE_ID)
+STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" $MAIN_URL/api/clientes/$CLIENTE_ID)
 if [ "$STATUS_CODE" = "404" ]; then
     success "Cliente não encontrado (deletado corretamente)"
 else
@@ -380,25 +368,40 @@ echo ""
 success "Sistema de Gestão está funcionando perfeitamente!"
 echo ""
 info "🌐 Acessos disponíveis:"
-echo "   • Home: http://localhost:8080"
-echo "   • Clientes: http://localhost:8080/clientes"
-echo "   • Novo Cliente: http://localhost:8080/clientes/novo"
-echo "   • API Health: http://localhost:8080/health"
-echo "   • API Clientes: http://localhost:8080/api/clientes"
+if [ "$MAIN_URL" = "http://localhost" ]; then
+    echo "   • Home (Nginx): http://localhost"
+    echo "   • Clientes (Nginx): http://localhost/clientes"
+    echo "   • Novo Cliente (Nginx): http://localhost/clientes/novo"
+    echo "   • API Health (Nginx): http://localhost/health"
+    echo "   • API Clientes (Nginx): http://localhost/api/clientes"
+    echo "   • Go Direto: http://localhost:8080"
+else
+    echo "   • Home: http://localhost:8080"
+    echo "   • Clientes: http://localhost:8080/clientes"
+    echo "   • Novo Cliente: http://localhost:8080/clientes/novo"
+    echo "   • API Health: http://localhost:8080/health"
+    echo "   • API Clientes: http://localhost:8080/api/clientes"
+    warning "Nginx não está respondendo na porta 80"
+fi
 echo ""
-info "📊 Serviços rodando:"
-echo "   • PostgreSQL: localhost:5432"
-echo "   • Aplicação Go: localhost:8080"
-echo "   • PID da aplicação: $APP_PID"
+info "📈 Serviços rodando:"
+echo "   • PostgreSQL: localhost:5432 (Docker)"
+if [ "$MAIN_URL" = "http://localhost" ]; then
+    echo "   • Nginx: localhost:80 (Docker)"
+    echo "   • Aplicação Go: localhost:8080 (Docker)"
+else
+    echo "   • Aplicação Go: localhost:8080 (Docker)"
+    warning "Nginx não está ativo"
+fi
+echo "   • Containers: $($DOCKER_COMPOSE_CMD ps --services | tr '\n' ' ')"
 echo ""
 warning "Para parar o sistema:"
-echo "   • Aplicação: kill $APP_PID"
-echo "   • PostgreSQL: $DOCKER_COMPOSE_CMD down"
-echo "   • Tudo: $DOCKER_COMPOSE_CMD down && kill $APP_PID"
+echo "   • Stack completa: $DOCKER_COMPOSE_CMD down"
 echo "   • Script automático: ./stop_system.sh"
 echo ""
 info "📝 Logs da aplicação:"
-echo "   • tail -f /tmp/webserver-go.log (se configurado)"
-echo "   • ou monitore o processo PID $APP_PID"
+echo "   • Logs do Go: $DOCKER_COMPOSE_CMD logs -f webserver"
+echo "   • Logs do PostgreSQL: $DOCKER_COMPOSE_CMD logs -f postgres"
+echo "   • Todos os logs: $DOCKER_COMPOSE_CMD logs -f"
 echo ""
 success "Sistema pronto para uso! 🚀"

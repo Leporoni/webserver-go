@@ -33,12 +33,12 @@ cat << "EOF"
 EOF
 echo -e "${NC}"
 
-# Parar aplicação Go
-info "Parando aplicação Go..."
+# Parar aplicação Go (agora roda no Docker)
+info "Parando aplicação Go local (se houver)..."
 if pkill -f "webserver-go"; then
-    success "Aplicação Go parada"
+    success "Aplicação Go local parada"
 else
-    warning "Nenhuma aplicação Go encontrada rodando"
+    info "Nenhuma aplicação Go local encontrada"
 fi
 
 # Detectar se precisa de sudo para Docker
@@ -49,10 +49,10 @@ if ! docker-compose ps &>/dev/null 2>&1; then
     fi
 fi
 
-# Parar containers Docker
-info "Parando containers Docker..."
+# Parar stack completa (Nginx + Go + PostgreSQL)
+info "Parando stack completa (Nginx + Go + PostgreSQL)..."
 if $DOCKER_COMPOSE_CMD down --remove-orphans; then
-    success "Containers Docker parados"
+    success "Stack completa parada (Nginx + Go + PostgreSQL)"
 else
     warning "Erro ao parar containers ou nenhum container rodando"
 fi

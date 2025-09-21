@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"webserver-go/internal/database"
@@ -25,10 +26,43 @@ func main() {
 		log.Printf("Warning: Failed to run migrations: %v", err)
 	}
 
+	// Inicializar handlers
+	clienteHandler := handlers.NewClienteHandler()
+
 	// Configurar rotas
 	http.HandleFunc("/", middleware.LoggingMiddleware(handlers.HomeHandler))
 	http.HandleFunc("/health", middleware.LoggingMiddleware(handlers.HealthHandler))
 	http.HandleFunc("/static/", middleware.LoggingMiddleware(handlers.StaticHandler))
+
+	// Rotas da API de clientes
+	http.HandleFunc("/api/clientes", middleware.LoggingMiddleware(clienteHandler.ListClientesAPI))
+	http.HandleFunc("/api/clientes/", middleware.LoggingMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			clienteHandler.GetClienteAPI(w, r)
+		case http.MethodPut:
+			clienteHandler.UpdateClienteAPI(w, r)
+		case http.MethodDelete:
+			clienteHandler.DeleteClienteAPI(w, r)
+		case http.MethodPost:
+			clienteHandler.CreateClienteAPI(w, r)
+		default:
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	// Rotas da interface web de clientes
+	http.HandleFunc("/clientes", middleware.LoggingMiddleware(clienteHandler.ListClientesWeb))
+	http.HandleFunc("/clientes/", middleware.LoggingMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if path == "/clientes/novo" {
+			clienteHandler.NewClienteWeb(w, r)
+		} else if strings.HasSuffix(path, "/editar") {
+			clienteHandler.EditClienteWeb(w, r)
+		} else {
+			clienteHandler.ShowClienteWeb(w, r)
+		}
+	}))
 
 	// Configurar servidor
 	port := ":8080"

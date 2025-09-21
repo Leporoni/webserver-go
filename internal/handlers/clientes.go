@@ -383,7 +383,10 @@ func (h *ClienteHandler) ListClientesWeb(w http.ResponseWriter, r *http.Request)
 <body>
     <div class="container">
         <div class="header">
-            <h1>Gestão de Clientes</h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <a href="/" class="btn btn-secondary">🏠 Home</a>
+                <h1 style="margin: 0;">Gestão de Clientes</h1>
+            </div>
             <a href="/clientes/novo" class="btn">+ Novo Cliente</a>
         </div>
 
@@ -554,7 +557,10 @@ func (h *ClienteHandler) ShowClienteWeb(w http.ResponseWriter, r *http.Request) 
 <body>
     <div class="container">
         <div class="header">
-            <h1>{{.Nome}}</h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <a href="/" class="btn btn-secondary">🏠 Home</a>
+                <h1 style="margin: 0;">{{.Nome}}</h1>
+            </div>
             <span class="status {{if .Ativo}}ativo{{else}}inativo{{end}}">
                 {{if .Ativo}}Ativo{{else}}Inativo{{end}}
             </span>
@@ -795,7 +801,10 @@ func (h *ClienteHandler) showClienteForm(w http.ResponseWriter, cliente *models.
 <body>
     <div class="container">
         <div class="header">
-            <h1>{{.Title}}</h1>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <a href="/" class="btn btn-secondary">🏠 Home</a>
+                <h1 style="margin: 0;">{{.Title}}</h1>
+            </div>
         </div>
 
         {{if .Error}}

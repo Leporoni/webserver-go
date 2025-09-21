@@ -83,7 +83,10 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
             <div class="module">
                 <h3>👥 Gestão de Clientes</h3>
                 <p>Cadastre e gerencie informações completas dos seus clientes, incluindo dados pessoais, endereços e histórico.</p>
-                <a href="/clientes" class="btn">Acessar Clientes</a>
+                <div style="display: flex; gap: 10px;">
+                    <a href="/clientes" class="btn">Ver Clientes</a>
+                    <a href="/clientes/novo" class="btn" style="background: #28a745;">+ Novo Cliente</a>
+                </div>
             </div>
 
             <div class="module">

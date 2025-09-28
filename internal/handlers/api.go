@@ -92,7 +92,10 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
             <div class="module">
                 <h3>📦 Gestão de Produtos</h3>
                 <p>Controle seu catálogo de produtos com categorias, preços, especificações e imagens.</p>
-                <a href="#" class="btn" style="background: #6c757d;">Em Desenvolvimento</a>
+                <div style="display: flex; gap: 10px;">
+                    <a href="/produtos" class="btn">Ver Produtos</a>
+                    <a href="/produtos/novo" class="btn" style="background: #28a745;">+ Novo Produto</a>
+                </div>
             </div>
 
             <div class="module">
@@ -110,7 +113,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
         <div class="footer">
             <p>Sistema de Gestão v1.0 - Desenvolvido com Go, PostgreSQL e Docker</p>
-            <p><a href="/health" style="color: #007bff;">Status do Sistema</a> | <a href="/api/clientes" style="color: #007bff;">API Clientes</a></p>
+            <p><a href="/health" style="color: #007bff;">Status do Sistema</a> | <a href="/api/clientes" style="color: #007bff;">API Clientes</a> | <a href="/api/produtos" style="color: #007bff;">API Produtos</a></p>
         </div>
     </div>
 </body>

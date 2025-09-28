@@ -7,9 +7,15 @@ import (
 	"os"
 
 	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
-var DB *sql.DB
+var (
+	DB     *sql.DB  // Para SQL puro (clientes)
+	GormDB *gorm.DB // Para GORM (produtos)
+)
 
 // Config holds database configuration
 type Config struct {
@@ -31,13 +37,14 @@ func GetConfig() *Config {
 	}
 }
 
-// Connect establishes database connection
+// Connect establishes database connections (both SQL and GORM)
 func Connect() error {
 	config := GetConfig()
 	
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		config.Host, config.Port, config.User, config.Password, config.DBName)
 	
+	// Conectar SQL puro (para clientes)
 	var err error
 	DB, err = sql.Open("postgres", dsn)
 	if err != nil {
@@ -49,15 +56,35 @@ func Connect() error {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 	
-	log.Printf("Successfully connected to database: %s", config.DBName)
+	// Conectar GORM (para produtos)
+	GormDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Info),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to connect GORM: %w", err)
+	}
+	
+	log.Printf("Successfully connected to database: %s (SQL + GORM)", config.DBName)
 	return nil
 }
 
-// Close closes the database connection
+// Close closes both database connections
 func Close() error {
 	if DB != nil {
-		return DB.Close()
+		if err := DB.Close(); err != nil {
+			return err
+		}
 	}
+	
+	// GORM connection will be closed automatically
+	// when the underlying sql.DB is closed
+	if GormDB != nil {
+		sqlDB, err := GormDB.DB()
+		if err == nil {
+			return sqlDB.Close()
+		}
+	}
+	
 	return nil
 }
 

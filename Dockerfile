@@ -22,15 +22,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 # Imagem final
 FROM alpine:latest
 
-# Instalar certificados SSL e nginx
-RUN apk --no-cache add ca-certificates nginx
-
-# Criar usuário não-root
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -S appuser -u 1001 -G appgroup
+# Instalar certificados SSL, nginx e wget para healthcheck
+RUN apk --no-cache add ca-certificates nginx wget
 
 # Definir diretório de trabalho
-WORKDIR /root/
+WORKDIR /app
 
 # Copiar binário da aplicação
 COPY --from=builder /app/main .
@@ -38,10 +34,14 @@ COPY --from=builder /app/static ./static
 COPY --from=builder /app/nginx.conf /etc/nginx/nginx.conf
 
 # Criar diretórios necessários para o nginx
-RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /var/cache/nginx
+RUN mkdir -p /var/log/nginx /var/lib/nginx/tmp /var/cache/nginx /run/nginx
+
+# Criar página de erro personalizada
+RUN mkdir -p /usr/share/nginx/html && \
+    echo '<h1>Service Temporarily Unavailable</h1>' > /usr/share/nginx/html/50x.html
 
 # Definir permissões
-RUN chown -R appuser:appgroup /root/ /var/log/nginx /var/lib/nginx /var/cache/nginx
+RUN chmod +x /app/main
 
 # Expor portas
 EXPOSE 80 8080

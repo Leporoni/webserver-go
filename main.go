@@ -28,6 +28,7 @@ func main() {
 
 	// Inicializar handlers
 	clienteHandler := handlers.NewClienteHandler()
+	produtoHandler := handlers.NewProdutoHandler()
 
 	// Configurar rotas
 	http.HandleFunc("/", middleware.LoggingMiddleware(handlers.HomeHandler))
@@ -68,6 +69,55 @@ func main() {
 			clienteHandler.EditClienteWeb(w, r)
 		} else {
 			clienteHandler.ShowClienteWeb(w, r)
+		}
+	}))
+
+	// Rotas da API de produtos
+	http.HandleFunc("/api/produtos", middleware.LoggingMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			produtoHandler.ListProdutosAPI(w, r)
+		case http.MethodPost:
+			produtoHandler.CreateProdutoAPI(w, r)
+		default:
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		}
+	}))
+	http.HandleFunc("/api/produtos/", middleware.LoggingMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			produtoHandler.GetProdutoAPI(w, r)
+		case http.MethodPut:
+			produtoHandler.UpdateProdutoAPI(w, r)
+		case http.MethodDelete:
+			produtoHandler.DeleteProdutoAPI(w, r)
+		default:
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	// Rotas da API de categorias
+	http.HandleFunc("/api/categorias", middleware.LoggingMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			produtoHandler.GetCategoriasAPI(w, r)
+		case http.MethodPost:
+			produtoHandler.CreateCategoriaAPI(w, r)
+		default:
+			http.Error(w, "Método não permitido", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	// Rotas da interface web de produtos
+	http.HandleFunc("/produtos", middleware.LoggingMiddleware(produtoHandler.ListProdutosWeb))
+	http.HandleFunc("/produtos/", middleware.LoggingMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if path == "/produtos/novo" {
+			produtoHandler.NewProdutoWeb(w, r)
+		} else if strings.HasSuffix(path, "/editar") {
+			produtoHandler.EditProdutoWeb(w, r)
+		} else {
+			produtoHandler.ShowProdutoWeb(w, r)
 		}
 	}))
 

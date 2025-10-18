@@ -30,14 +30,7 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
-// PaginatedResponse estrutura para respostas paginadas
-type PaginatedResponse struct {
-	Data       interface{} `json:"data"`
-	Total      int         `json:"total"`
-	Page       int         `json:"page"`
-	Limit      int         `json:"limit"`
-	TotalPages int         `json:"total_pages"`
-}
+
 
 // === API ENDPOINTS ===
 
@@ -77,7 +70,7 @@ func (h *ClienteHandler) ListClientesAPI(w http.ResponseWriter, r *http.Request)
 
 	totalPages := (total + limit - 1) / limit
 
-	paginatedResponse := PaginatedResponse{
+	paginatedResponse := models.PaginatedResponse{
 		Data:       clientes,
 		Total:      total,
 		Page:       page,

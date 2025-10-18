@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/gorilla/mux"
 
 	"webserver-go/internal/models"
 	"webserver-go/internal/services"
@@ -21,6 +24,42 @@ type ProdutoHandler struct {
 func NewProdutoHandler() *ProdutoHandler {
 	return &ProdutoHandler{
 		service: services.NewProdutoService(),
+	}
+}
+
+// formatFloatPointer é uma função auxiliar para o template que formata um *float64.
+// Se o ponteiro for nil, retorna "N/A". Caso contrário, formata o número.
+func formatFloatPointer(f *float64) string {
+	if f == nil {
+		return "N/A"
+	}
+	return fmt.Sprintf("%.2f", *f)
+}
+
+func (h *ProdutoHandler) ViewProduto(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	produto, err := h.service.GetProdutoByID(id)
+	if err != nil {
+		http.Error(w, "Produto não encontrado", http.StatusNotFound)
+		return
+	}
+
+	// Adicionando a função auxiliar ao mapa de funções do template
+	funcs := template.FuncMap{"formatFloat": formatFloatPointer}
+
+	tmpl, err := template.New("view.html").Funcs(funcs).ParseFiles("web/template/layout.html", "web/template/produtos/view.html")
+	if err != nil {
+		log.Printf("Erro ao fazer parse do template: %v", err)
+		http.Error(w, "Erro ao renderizar a página", http.StatusInternalServerError)
+		return
+	}
+
+	err = tmpl.ExecuteTemplate(w, "layout", produto)
+	if err != nil {
+		log.Printf("Erro ao executar o template: %v", err)
+		http.Error(w, "Erro ao renderizar a página", http.StatusInternalServerError)
 	}
 }
 
@@ -630,15 +669,16 @@ func (h *ProdutoHandler) NewProdutoWeb(w http.ResponseWriter, r *http.Request) {
                 </div>
                 <div class="form-group">
                     <label for="margem_lucro">Margem de Lucro (%)</label>
-                    <input type="number" id="margem_lucro" name="margem_lucro" step="0.01" min="0" max="100" placeholder="0.00">
-                    <div class="help-text">Calculada automaticamente se não informada</div>
+                    <input type="number" id="margem_lucro" name="margem_lucro" step="0.1" min="0" max="1000" placeholder="25.0">
+                    <div class="help-text">Porcentagem de lucro - calculada automaticamente se não informada</div>
                 </div>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
                     <label for="peso">Peso (kg)</label>
-                    <input type="number" id="peso" name="peso" step="0.001" min="0" placeholder="0.000">
+                    <input type="number" id="peso" name="peso" step="0.001" min="0" placeholder="2.550">
+                    <div class="help-text">Peso em quilos (ex: 2.550 = 2kg e 550g)</div>
                 </div>
                 <div class="form-group">
                     <label for="dimensoes">Dimensões</label>
@@ -898,92 +938,81 @@ func (h *ProdutoHandler) ShowProdutoWeb(w http.ResponseWriter, r *http.Request) 
 
             <div class="info-card">
                 <h3>💰 Preços e Margem</h3>
-                {{if .PrecoCusto}}
-                <div class="info-item">
-                    <strong>Preço de Custo:</strong> R$ {{printf "%.2f" .PrecoCusto}}
-                </div>
-                {{end}}
-                <div class="info-item">
-                    <strong>Preço de Venda:</strong> <span class="price">R$ {{printf "%.2f" .PrecoVenda}}</span>
-                </div>
-                {{if .MargemLucro}}
-                <div class="info-item">
-                    <strong>Margem de Lucro:</strong> {{printf "%.2f" .MargemLucro}}%
-                </div>
-                {{end}}
-                <div class="info-item">
-                    <strong>Unidade de Medida:</strong> {{.UnidadeMedida}}
-                </div>
+                <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-dollar-sign"></i> Preços e Margem
             </div>
-
-            {{if or .Peso .Dimensoes}}
-            <div class="info-card">
-                <h3>📏 Especificações Físicas</h3>
-                {{if .Peso}}
-                <div class="info-item">
-                    <strong>Peso:</strong> {{printf "%.3f" .Peso}} kg
-                </div>
-                {{end}}
-                {{if .Dimensoes}}
-                <div class="info-item">
-                    <strong>Dimensões:</strong> {{.Dimensoes}}
-                </div>
-                {{end}}
+            <div class="card-body">
+                <p class="card-text"><strong>Preço de Custo:</strong> R$ {{ .PrecoCusto | formatFloat }}</p>
+                <p class="card-text"><strong>Preço de Venda:</strong> R$ {{ .PrecoVenda | formatFloat }}</p>
+                <p class="card-text"><strong>Margem de Lucro:</strong> {{ .MargemLucro | formatFloat }}%</p>
+                <p class="card-text"><strong>Unidade de Medida:</strong> {{ .UnidadeMedida }}</p>
             </div>
-            {{end}}
-
-            <div class="info-card">
-                <h3>📅 Informações do Sistema</h3>
-                <div class="info-item">
-                    <strong>Criado em:</strong> {{.CreatedAt.Format "02/01/2006 15:04"}}
-                </div>
-                <div class="info-item">
-                    <strong>Atualizado em:</strong> {{.UpdatedAt.Format "02/01/2006 15:04"}}
-                </div>
-                <div class="info-item">
-                    <strong>ID:</strong> <code>{{.ID}}</code>
-                </div>
-            </div>
-        </div>
-
-        {{if .Observacoes}}
-        <div class="info-card">
-            <h3>📝 Observações</h3>
-            <p>{{.Observacoes}}</p>
-        </div>
-        {{end}}
-
-        <div style="margin-top: 30px; text-align: center;">
-            <a href="/produtos" class="btn">← Voltar para Produtos</a>
         </div>
     </div>
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-ruler-combined"></i> Especificações Físicas
+            </div>
+            <div class="card-body">
+                <p class="card-text"><strong>Peso:</strong> {{ .Peso | formatFloat }} kg</p>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-info-circle"></i> Informações do Sistema
+            </div>
+            <div class="card-body">
+                <p class="card-text"><strong>Criado em:</strong> {{.CreatedAt.Format "02/01/2006 15:04"}}</p>
+                <p class="card-text"><strong>Atualizado em:</strong> {{.UpdatedAt.Format "02/01/2006 15:04"}}</p>
+                <p class="card-text"><strong>ID:</strong> <code>{{.ID}}</code></p>
+            </div>
+        </div>
+    </div>
+</div>
 
-    <script>
-        function deleteProduto(id, nome) {
-            if (confirm('Tem certeza que deseja excluir o produto "' + nome + '"?')) {
-                fetch('/api/produtos/' + id, {
-                    method: 'DELETE'
-                })
-                .then(response => {
-                    if (response.ok) {
-                        alert('Produto excluído com sucesso!');
-                        window.location.href = '/produtos';
-                    } else {
-                        return response.text().then(text => {
-                            throw new Error(text);
-                        });
-                    }
-                })
-                .catch(error => {
-                    alert('Erro ao excluir produto: ' + error.message);
-                });
-            }
+{{if .Observacoes}}
+<div class="info-card">
+    <h3>📝 Observações</h3>
+    <p>{{.Observacoes}}</p>
+</div>
+{{end}}
+
+<div style="margin-top: 30px; text-align: center;">
+    <a href="/produtos" class="btn">← Voltar para Produtos</a>
+</div>
+</div>
+
+<script>
+    function deleteProduto(id, nome) {
+        if (confirm('Tem certeza que deseja excluir o produto "' + nome + '"?')) {
+            fetch('/api/produtos/' + id, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Produto excluído com sucesso!');
+                    window.location.href = '/produtos';
+                } else {
+                    return response.text().then(text => {
+                        throw new Error(text);
+                    });
+                }
+            })
+            .catch(error => {
+                alert('Erro ao excluir produto: ' + error.message);
+            });
         }
-    </script>
+    }
+</script>
 </body>
 </html>`
 
-	t, err := template.New("produto").Parse(tmpl)
+	// Registrar função auxiliar de formatação para uso nos pipes do template
+	funcs := template.FuncMap{"formatFloat": formatFloatPointer}
+
+	t, err := template.New("produto").Funcs(funcs).Parse(tmpl)
 	if err != nil {
 		http.Error(w, "Erro no template", http.StatusInternalServerError)
 		return
@@ -1125,7 +1154,8 @@ func (h *ProdutoHandler) EditProdutoWeb(w http.ResponseWriter, r *http.Request) 
                 </div>
                 <div class="form-group">
                     <label for="margem_lucro">Margem de Lucro (%)</label>
-                    <input type="number" id="margem_lucro" name="margem_lucro" step="0.01" min="0" max="100" value="{{if .Produto.MargemLucro}}{{printf "%.2f" .Produto.MargemLucro}}{{end}}">
+                    <input type="number" id="margem_lucro" name="margem_lucro" step="0.1" min="0" max="1000" value="{{if .Produto.MargemLucro}}{{printf "%.1f" .Produto.MargemLucro}}{{end}}">
+                    <div class="help-text">Porcentagem de lucro sobre o custo</div>
                 </div>
             </div>
 
@@ -1133,6 +1163,7 @@ func (h *ProdutoHandler) EditProdutoWeb(w http.ResponseWriter, r *http.Request) 
                 <div class="form-group">
                     <label for="peso">Peso (kg)</label>
                     <input type="number" id="peso" name="peso" step="0.001" min="0" value="{{if .Produto.Peso}}{{printf "%.3f" .Produto.Peso}}{{end}}">
+                    <div class="help-text">Peso em quilos (ex: 2.550 = 2kg e 550g)</div>
                 </div>
                 <div class="form-group">
                     <label for="dimensoes">Dimensões</label>

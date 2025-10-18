@@ -90,13 +90,13 @@ PRODUTO_RESPONSE=$(curl -s -X POST "$API_URL/produtos" \
     \"descricao\": \"Smartphone com 128GB de armazenamento\",
     \"codigo_barras\": \"1234567890123\",
     \"categoria_id\": \"$CATEGORIA_ID\",
-    \"preco_custo\": 800.00,
-    \"preco_venda\": 1200.00,
+    \"preco_custo\": 1000.00,
+    \"preco_venda\": 1250.00,
     \"unidade_medida\": \"UN\",
-    \"peso\": 0.180,
-    \"dimensoes\": \"15x7x0.8 cm\",
+    \"peso\": 0.185,
+    \"dimensoes\": \"15.2x7.1x0.8 cm\",
     \"ativo\": true,
-    \"observacoes\": \"Produto de teste criado automaticamente\"
+    \"observacoes\": \"Produto de teste - Margem de 25% sobre o custo\"
   }")
 
 if echo "$PRODUTO_RESPONSE" | grep -q '"success":true'; then

@@ -176,21 +176,27 @@ if [ "$POSTGRES_READY" = false ]; then
 fi
 success "PostgreSQL está pronto e aceitando conexões"
 
-# Verificar se as tabelas foram criadas
-log "Verificando estrutura do banco de dados..."
-TABLES_COUNT=$($DOCKER_COMPOSE_CMD exec -T postgres psql -U gestao_user -d gestao_db -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' \n' || echo "0")
+# Aplicar migrations (todas as *.up.sql em ordem) sem rodar nenhum DOWN
+log "Aplicando migrations (*.up.sql) em ordem..."
 
-if [ "$TABLES_COUNT" -eq "0" ]; then
-    warning "Tabelas não encontradas, executando migrations manualmente..."
-    if [ -f "migrations/001_initial_schema.up.sql" ]; then
-        $DOCKER_COMPOSE_CMD exec -T postgres psql -U gestao_user -d gestao_db < migrations/001_initial_schema.up.sql
-        success "Migrations executadas manualmente"
+if [ -d "migrations" ]; then
+    # Encontrar e ordenar arquivos *.up.sql
+    mapfile -t MIGRATION_FILES < <(ls -1 migrations/*_*.up.sql 2>/dev/null | sort)
+
+    if [ ${#MIGRATION_FILES[@]} -eq 0 ]; then
+        warning "Nenhuma migration .up.sql encontrada em ./migrations"
     else
-        error "Arquivo de migration não encontrado"
-        exit 1
+        for MIG in "${MIGRATION_FILES[@]}"; do
+            info "Aplicando migration: $MIG"
+            if ! $DOCKER_COMPOSE_CMD exec -T postgres psql -U gestao_user -d gestao_db < "$MIG"; then
+                error "Falha ao aplicar migration: $MIG"
+                exit 1
+            fi
+        done
+        success "Todas as migrations .up.sql foram aplicadas"
     fi
 else
-    success "Banco de dados já possui $TABLES_COUNT tabela(s)"
+    warning "Diretório migrations não encontrado; pulando migrations"
 fi
 
 # Aguardar aplicação Go ficar pronta (rodando no Docker)
